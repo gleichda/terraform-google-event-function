@@ -16,10 +16,10 @@
 
 output "name" {
   description = "The name of the function."
-  value       = google_cloudfunctions_function.main.name
+  value       = var.functions_gen == 2 ? google_cloudfunctions2_function.main[0].name : google_cloudfunctions_function.main[0].name
 }
 
 output "https_trigger_url" {
   description = "URL which triggers function execution."
-  value       = var.trigger_http != null ? google_cloudfunctions_function.main.https_trigger_url : ""
+  value       = var.trigger_http != null ? var.functions_gen == 2 ? google_cloudfunctions2_function.main[0].url : google_cloudfunctions_function.main[0].https_trigger_url : ""
 }

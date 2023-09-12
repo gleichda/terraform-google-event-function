@@ -100,6 +100,7 @@ data "google_project" "default" {
 }
 
 resource "google_cloudfunctions_function" "main" {
+  count                         = var.functions_gen == 1 ? 1 : 0
   name                          = var.name
   description                   = var.description
   available_memory_mb           = var.available_memory_mb
@@ -147,4 +148,59 @@ resource "google_cloudfunctions_function" "main" {
   docker_registry             = var.docker_registry
   docker_repository           = var.docker_repository
   kms_key_name                = var.kms_key_name
+}
+
+resource "google_cloudfunctions2_function" "main" {
+  count        = var.functions_gen == 2 ? 1 : 0
+  name         = var.name
+  description  = var.description
+  project      = var.project_id
+  location     = var.region
+  labels       = var.labels
+  kms_key_name = var.kms_key_name
+
+  service_config {
+    available_memory              = "${var.available_memory_mb}Mi"
+    max_instance_count            = var.max_instances
+    timeout_seconds               = var.timeout_s
+    ingress_settings              = var.ingress_settings
+    vpc_connector_egress_settings = var.vpc_connector_egress_settings
+    vpc_connector                 = var.vpc_connector
+    service_account_email         = var.service_account_email
+
+    dynamic "secret_environment_variables" {
+      for_each = { for item in var.secret_environment_variables : item.key => item }
+
+      content {
+        key        = secret_environment_variables.value["key"]
+        project_id = try(data.google_project.nums[secret_environment_variables.value["project_id"]].number, data.google_project.default[0].number)
+        secret     = secret_environment_variables.value["secret_name"]
+        version    = lookup(secret_environment_variables.value, "version", "latest")
+      }
+    }
+    environment_variables = var.environment_variables
+  }
+
+  build_config {
+    runtime     = var.runtime
+    entry_point = var.entry_point
+    source {
+      storage_source {
+        bucket = var.create_bucket ? google_storage_bucket.main[0].name : var.bucket_name
+        object = google_storage_bucket_object.main.name
+      }
+    }
+    docker_repository     = var.docker_repository
+    environment_variables = var.build_environment_variables
+  }
+
+  dynamic "event_trigger" {
+    for_each = var.trigger_http != null ? [] : [1]
+
+    content {
+      event_type   = var.event_trigger["event_type"]
+      pubsub_topic = var.event_trigger["resource"]
+      retry_policy = var.event_trigger_failure_policy_retry ? "RETRY_POLICY_RETRY" : "RETRY_POLICY_DO_NOT_RETRY"
+    }
+  }
 }

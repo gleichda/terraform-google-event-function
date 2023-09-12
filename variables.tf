@@ -203,3 +203,9 @@ variable "kms_key_name" {
   default     = null
   description = "Resource name of a KMS crypto key (managed by the user) used to encrypt/decrypt function resources."
 }
+
+variable "functions_gen" {
+  type = number
+  default = 2
+  description = "The Generation of cloud functions to use"
+}
